@@ -10,6 +10,12 @@ FINGER_BASES = list(range(1, 18, 4))
 
 EPS = 50
 
+GESTURE_CONFIDENCE = 5
+
+confidence_gesture = ''
+cur_gesture = ''
+
+confidence = 0
 
 class GestureDetector():
     def __init__(self, landmarks, shape, ) -> None:
@@ -27,16 +33,14 @@ class GestureDetector():
         detected_gesture = ''
         cnt = 0
         for base in FINGER_BASES:
-            if base == 1:
-                EPS*=2
             if self.points[base][1] - EPS > self.points[base + 3][1]:
                 cnt += 1
-            if base == 1:
-                EPS//=2
+                if base == 1 and abs(self.points[base][0] - self.points[base + 3][0]) > EPS:
+                    cnt-=1
 
 
-        res_image = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-        cv2.imshow("Hands", img)
+
+
 
         detected_gesture = str(cnt)
         return detected_gesture
@@ -53,9 +57,19 @@ while cap.isOpened():
     if results.multi_hand_landmarks:
         for hand_landmarks in results.multi_hand_landmarks:
             detector = GestureDetector(hand_landmarks, img.shape)
+            cur_gesture += detector.rechognize()
+        if cur_gesture != confidence_gesture:
+            confidence_gesture = cur_gesture
+            confidence = 1
+        else:
+            confidence += 1
 
-            print(detector.rechognize(), end='-')
-        print()
 
+        if confidence >= GESTURE_CONFIDENCE:
+            print(cur_gesture, 'CONFIDENT')
+
+        cur_gesture = ''
+
+    cv2.imshow("Hands", img)
 
 
