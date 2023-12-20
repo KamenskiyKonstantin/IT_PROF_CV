@@ -4,15 +4,7 @@ import numpy as np
 from time import time_ns
 import pygame
 import os
-
-cap = cv2.VideoCapture(0)
-MODEL = mediapipe.solutions.hands.Hands(max_num_hands=2)
-
-EPS = 30
-
-GESTURE_CONFIDENCE = 10
-TIMER = 3000
-
+from Constants import CAMERA_ID, TIMER, GESTURE_CONFIDENCE, EPS
 
 def islower(a, b):
     return a < b and abs(a - b) > EPS
@@ -26,18 +18,36 @@ def isequal(a, b):
     return abs(a - b) < EPS
 
 
-class GestureDetector():
-    def __init__(self, landmarks, shape, hand) -> None:
+class GestureDetector:
+    """
+    Represents a detector of gestures on the image
+    """
+
+    def __init__(self, landmarks, shape: (float, float), hand) -> None:
+        """
+        initializes recognizers
+        :param landmarks: Normalized landmark list, list of landmarks of hand
+        :param shape: Input image shape
+        :param hand: data about left or right hand is provided
+        """
         self.landmarks = landmarks
         self.shape = shape
         self.points = []
         self.hand = hand
 
     def get_points(self):
+        """
+        defines list of key points on landmark
+        :return:
+        """
         for mark in self.landmarks.landmark:
             self.points.append([mark.x * self.shape[1], mark.y * self.shape[0]])
 
-    def rechognize(self):
+    def recognize(self):
+        """
+        detects gesture and returns it as a string
+        :return:
+        """
         global EPS
         self.get_points()
 
@@ -54,9 +64,9 @@ class GestureDetector():
                 and self.points[5][1] < self.points[9][1]):
 
             return '='
-        elif abs(self.points[5][1] - self.points[8][1]) < EPS < abs(self.points[5][0] - self.points[8][0]):
-            if isequal(self.points[9][1], self.points[12][1]) and EPS < abs(
-                    self.points[9][0] - self.points[12][0]):
+        elif isequal(self.points[5][1], self.points[8][1]) and not isequal(self.points[5][0], self.points[8][0]):
+            if isequal(self.points[9][1], self.points[12][1]) and not isequal(
+                    self.points[9][0], self.points[12][0]):
                 return 'backspace'
             return '-'
         elif (
@@ -108,6 +118,36 @@ class GestureDetector():
         return 'NONE'
 
 
+def draw() -> None:
+    """
+    Draws the current parameters: detected gesture, confidence, current expression
+    :return:
+    """
+    global cur_gesture
+    pygame.draw.rect(screen, (17, 17, 17), screen.get_rect())
+    if cur_gesture == '':
+        cur_gesture = 'Unknown'
+
+    gesture_label = main_font.render(f'Detected gesture: {cur_gesture}', True, (238, 238, 238))
+    screen.blit(gesture_label, (10, 10))
+
+    if cur_gesture == 'Unknown':
+        cur_gesture = ''
+
+    confidence_label = main_font.render(f'Confidence: {confidence}/{GESTURE_CONFIDENCE}', True,
+                                        (238, 238, 238))
+    screen.blit(confidence_label, (10, 30))
+
+    cur_expr_label = main_font.render(f'Current entered expression: {expr}', True, (238, 238, 238))
+    screen.blit(cur_expr_label, (10, 50))
+
+
+MODEL = mediapipe.solutions.hands.Hands(max_num_hands=2)
+
+
+
+cap = cv2.VideoCapture(CAMERA_ID)
+
 confidence_gesture = ''
 cur_gesture = ''
 confidence = 0
@@ -124,21 +164,6 @@ pygame.display.set_caption('Results')
 pygame.font.init()
 main_font = pygame.font.SysFont('Calibri', 14, False, False)
 
-
-def draw():
-    pygame.draw.rect(screen, (17, 17, 17), screen.get_rect())
-
-    gesture_label = main_font.render(f'Detected gesture: {cur_gesture}', True, (238, 238, 238))
-    screen.blit(gesture_label, (10, 10))
-
-    confidence_label = main_font.render(f'Confidence: {confidence}/{GESTURE_CONFIDENCE}', True,
-                                        (238, 238, 238))
-    screen.blit(confidence_label, (10, 30))
-
-    cur_expr_label = main_font.render(f'Current entered expression: {expr}', True, (238, 238, 238))
-    screen.blit(cur_expr_label, (10, 50))
-
-
 while cap.isOpened():
     ret, img = cap.read()
     if cv2.waitKey(1) & 0xFF == ord('q') or not ret:
@@ -148,6 +173,7 @@ while cap.isOpened():
         if event.type == pygame.QUIT:
             pygame.quit()
             break
+
     img = np.fliplr(img)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
@@ -164,7 +190,7 @@ while cap.isOpened():
         if results.multi_hand_landmarks:
             for i, hand_landmarks in enumerate(results.multi_hand_landmarks):
                 detector = GestureDetector(hand_landmarks, img.shape, results.multi_handedness[i])
-                cur_gesture += detector.rechognize()
+                cur_gesture += detector.recognize()
 
             if cur_gesture != '':
 
@@ -249,3 +275,5 @@ while cap.isOpened():
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     cv2.imshow("Hands", img)
     pygame.display.flip()
+
+MODEL.close()
