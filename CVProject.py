@@ -3,13 +3,12 @@ import cv2
 import numpy as np
 from time import time_ns
 import pygame
-import sys
-import
+import os
 
 cap = cv2.VideoCapture(0)
 MODEL = mediapipe.solutions.hands.Hands(max_num_hands=2)
 
-EPS = 20
+EPS = 30
 
 GESTURE_CONFIDENCE = 10
 TIMER = 3000
@@ -25,6 +24,7 @@ def ishigher(a, b):
 
 def isequal(a, b):
     return abs(a - b) < EPS
+
 
 class GestureDetector():
     def __init__(self, landmarks, shape, hand) -> None:
@@ -55,7 +55,7 @@ class GestureDetector():
 
             return '='
         elif abs(self.points[5][1] - self.points[8][1]) < EPS < abs(self.points[5][0] - self.points[8][0]):
-            if abs(self.points[9][1] - self.points[12][1]) < EPS < abs(
+            if isequal(self.points[9][1], self.points[12][1]) and EPS < abs(
                     self.points[9][0] - self.points[12][0]):
                 return 'backspace'
             return '-'
@@ -116,8 +116,27 @@ expr = ''
 
 current_time = 0
 
+pygame.init()
+os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (650, 30)
+screen = pygame.display.set_mode((300, 100))
+pygame.display.set_caption('Results')
+
+pygame.font.init()
+main_font = pygame.font.SysFont('Calibri', 14, False, False)
 
 
+def draw():
+    pygame.draw.rect(screen, (17, 17, 17), screen.get_rect())
+
+    gesture_label = main_font.render(f'Detected gesture: {cur_gesture}', True, (238, 238, 238))
+    screen.blit(gesture_label, (10, 10))
+
+    confidence_label = main_font.render(f'Confidence: {confidence}/{GESTURE_CONFIDENCE}', True,
+                                        (238, 238, 238))
+    screen.blit(confidence_label, (10, 30))
+
+    cur_expr_label = main_font.render(f'Current entered expression: {expr}', True, (238, 238, 238))
+    screen.blit(cur_expr_label, (10, 50))
 
 
 while cap.isOpened():
@@ -139,8 +158,7 @@ while cap.isOpened():
             y_base = int(hand_landmarks.landmark[0].y * img.shape[0])
             cv2.circle(img, (x_base, y_base), radius=10, color=(0, 0, 255), thickness=-1)
 
-
-    if time_ns()//1000000 - current_time > TIMER:
+    if time_ns() // 1000000 - current_time > TIMER:
 
         results = MODEL.process(img)
         if results.multi_hand_landmarks:
@@ -170,10 +188,16 @@ while cap.isOpened():
                 else:
                     confidence += 1
 
+                draw()
+
+                pygame.display.flip()
+
                 if cur_gesture != '':
-                    print('detecting finished... gesture rechognized as', cur_gesture, 'confidence:', confidence, '/', GESTURE_CONFIDENCE)
+                    print('detecting finished... gesture rechognized as', cur_gesture, 'confidence:', confidence, '/',
+                          GESTURE_CONFIDENCE)
                 else:
-                    print('detecting finished... gesture rechognized as', 'unknown gesture', 'confidence:', confidence, '/',
+                    print('detecting finished... gesture rechognized as', 'unknown gesture', 'confidence:', confidence,
+                          '/',
                           GESTURE_CONFIDENCE)
 
                 if confidence >= GESTURE_CONFIDENCE:
@@ -182,13 +206,27 @@ while cap.isOpened():
                     confidence = 0
                     if cur_gesture == '=':
                         try:
-                            print('your expression was', expr, 'your result is', eval(expr))
+                            res = eval(expr)
                         except SyntaxError:
-                            print('your expression was', expr, 'Invalid expression')
+                            res = 'Invalid expression'
                         except ZeroDivisionError:
-                            print('your expression was', expr,'Zero division')
+                            res = 'Zero division'
+
+                        print(f'your expression was {expr},', 'your result is', res)
+
+                        current_time = time_ns() // 1000000
+
+                        draw()
+
+                        result_lbl = main_font.render(f'Result: {res}', True, (238, 238, 238))
+                        screen.blit(result_lbl, (10, 70))
+
+                        pygame.display.flip()
+
                         cur_gesture = ''
                         expr = ''
+
+                        continue
 
                     elif cur_gesture == 'backspace':
                         expr = expr[:-1]
@@ -196,15 +234,18 @@ while cap.isOpened():
                         expr += str(cur_gesture)
                         try:
                             if expr[-1] == expr[-2] == '+':
-                                expr = expr[:-2]+'*'
+                                expr = expr[:-2] + '*'
                             elif expr[-1] == expr[-2] == '-':
-                                expr = expr[:-2]+'/'
+                                expr = expr[:-2] + '/'
                         except IndexError:
                             pass
 
-                    current_time = time_ns()//1000000
+                    draw()
+
+                    current_time = time_ns() // 1000000
                 cur_gesture = ''
             else:
                 print('unknown gesture')
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     cv2.imshow("Hands", img)
+    pygame.display.flip()
