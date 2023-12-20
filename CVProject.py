@@ -2,6 +2,9 @@ import mediapipe
 import cv2
 import numpy as np
 from time import time_ns
+import pygame
+import sys
+import
 
 cap = cv2.VideoCapture(0)
 MODEL = mediapipe.solutions.hands.Hands(max_num_hands=2)
@@ -11,14 +14,7 @@ EPS = 20
 GESTURE_CONFIDENCE = 10
 TIMER = 3000
 
-confidence_gesture = ''
-cur_gesture = ''
 
-confidence = 0
-
-expr = ''
-
-current_time = 0
 def islower(a, b):
     return a < b and abs(a - b) > EPS
 
@@ -111,11 +107,28 @@ class GestureDetector():
             return '0'
         return 'NONE'
 
-cnt = 0
+
+confidence_gesture = ''
+cur_gesture = ''
+confidence = 0
+
+expr = ''
+
+current_time = 0
+
+
+
+
+
 while cap.isOpened():
     ret, img = cap.read()
     if cv2.waitKey(1) & 0xFF == ord('q') or not ret:
         break
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            break
     img = np.fliplr(img)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
@@ -136,6 +149,7 @@ while cap.isOpened():
                 cur_gesture += detector.rechognize()
 
             if cur_gesture != '':
+
                 if 'NONE' in cur_gesture:
                     cur_gesture = ''
                 if '1' in cur_gesture and '-' in cur_gesture:
@@ -144,6 +158,8 @@ while cap.isOpened():
                     cur_gesture = '-'
                 elif '=' in cur_gesture:
                     cur_gesture = '='
+                elif 'backspace' in cur_gesture:
+                    cur_gesture = 'backspace'
                 elif cur_gesture.isdigit():
                     cur_gesture = sum(list(map(int, list(cur_gesture))))
                     if cur_gesture == 10:
@@ -154,14 +170,23 @@ while cap.isOpened():
                 else:
                     confidence += 1
 
-                print('detecting finished... gesture rechognized as', cur_gesture, 'confidence:', confidence, '/', GESTURE_CONFIDENCE)
+                if cur_gesture != '':
+                    print('detecting finished... gesture rechognized as', cur_gesture, 'confidence:', confidence, '/', GESTURE_CONFIDENCE)
+                else:
+                    print('detecting finished... gesture rechognized as', 'unknown gesture', 'confidence:', confidence, '/',
+                          GESTURE_CONFIDENCE)
 
                 if confidence >= GESTURE_CONFIDENCE:
                     print('proceed')
                     confidence_gesture = ''
                     confidence = 0
                     if cur_gesture == '=':
-                        print('your expression was', expr, 'your result is', eval(expr))
+                        try:
+                            print('your expression was', expr, 'your result is', eval(expr))
+                        except SyntaxError:
+                            print('your expression was', expr, 'Invalid expression')
+                        except ZeroDivisionError:
+                            print('your expression was', expr,'Zero division')
                         cur_gesture = ''
                         expr = ''
 
