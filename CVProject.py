@@ -4,17 +4,23 @@ import numpy as np
 from time import time_ns
 import pygame
 import os
-from Constants import CAMERA_ID, TIMER, GESTURE_CONFIDENCE, EPS
+from Constants import CAMERA_ID, TIMER, GESTURE_CONFIDENCE
 
-def islower(a, b):
+EPS = 30
+
+
+"""
+Нижеследующие три функции сравнивают числа с учетом значения EPS
+"""
+def islower(a:float, b:float) -> bool:
     return a < b and abs(a - b) > EPS
 
 
-def ishigher(a, b):
+def ishigher(a:float, b:float) -> bool:
     return a > b and abs(a - b) > EPS
 
 
-def isequal(a, b):
+def isequal(a:float, b:float) -> bool:
     return abs(a - b) < EPS
 
 
@@ -35,7 +41,7 @@ class GestureDetector:
         self.points = []
         self.hand = hand
 
-    def get_points(self):
+    def get_points(self) -> None:
         """
         defines list of key points on landmark
         :return:
@@ -43,7 +49,7 @@ class GestureDetector:
         for mark in self.landmarks.landmark:
             self.points.append([mark.x * self.shape[1], mark.y * self.shape[0]])
 
-    def recognize(self):
+    def recognize(self) -> str:
         """
         detects gesture and returns it as a string
         :return:
@@ -51,25 +57,10 @@ class GestureDetector:
         global EPS
         self.get_points()
 
-        if (self.points[4][1] < self.points[3][1]
 
-                and ishigher(self.points[8][0], self.points[7][0])
-                and ishigher(self.points[12][0], self.points[11][0])
-                and ishigher(self.points[16][0], self.points[15][0])
-                and ishigher(self.points[20][0], self.points[19][0])
-                and islower(self.points[8][0], self.points[0][0])
-                and islower(self.points[12][0], self.points[0][0])
-                and islower(self.points[16][0], self.points[0][0])
-                and islower(self.points[20][0], self.points[0][0])
-                and self.points[5][1] < self.points[9][1]):
 
-            return '='
-        elif isequal(self.points[5][1], self.points[8][1]) and not isequal(self.points[5][0], self.points[8][0]):
-            if isequal(self.points[9][1], self.points[12][1]) and not isequal(
-                    self.points[9][0], self.points[12][0]):
-                return 'backspace'
-            return '-'
-        elif (
+
+        if (
                 islower(self.points[8][1], self.points[5][1])
                 and ishigher(self.points[12][1], self.points[10][1])
                 and ishigher(self.points[16][1], self.points[14][1])
@@ -115,6 +106,14 @@ class GestureDetector:
                 and ishigher(self.points[20][1], self.points[18][1])
         ):
             return '0'
+        elif not isequal(self.points[5][0], self.points[8][0]):
+            if not isequal(
+                    self.points[9][0], self.points[12][0]):
+                if not isequal(
+                    self.points[13][0], self.points[16][0]):
+                    return '='
+                return 'backspace'
+            return '-'
         return 'NONE'
 
 
@@ -168,11 +167,13 @@ while cap.isOpened():
     ret, img = cap.read()
     if cv2.waitKey(1) & 0xFF == ord('q') or not ret:
         break
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            break
+    try:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                break
+    except pygame.error:
+        break
 
     img = np.fliplr(img)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -274,6 +275,9 @@ while cap.isOpened():
                 print('unknown gesture')
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     cv2.imshow("Hands", img)
-    pygame.display.flip()
+    try:
+        pygame.display.flip()
+    except pygame.error:
+        break
 
 MODEL.close()

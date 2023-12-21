@@ -1,4 +1,6 @@
-mediapipe
-opencv-python
-numpy
-pygame
+numpy~=1.21.3
+opencv-python~=4.5.4.58
+pygame~=2.0.2
+setuptools~=41.2.0
+pyperclip~=1.8.2
+mediapipe~=0.10.9
