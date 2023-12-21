@@ -4,7 +4,7 @@ import numpy as np
 from time import time_ns
 import pygame
 import os
-from Constants import CAMERA_ID, TIMER, GESTURE_CONFIDENCE
+from Constants import CAMERA_ID, TIMER, GESTURE_CONFIDENCE, FONT
 
 EPS = 30
 
@@ -161,7 +161,7 @@ screen = pygame.display.set_mode((300, 100))
 pygame.display.set_caption('Results')
 
 pygame.font.init()
-main_font = pygame.font.SysFont('Calibri', 14, False, False)
+main_font = pygame.font.SysFont(FONT, 14, False, False)
 
 while cap.isOpened():
     ret, img = cap.read()
